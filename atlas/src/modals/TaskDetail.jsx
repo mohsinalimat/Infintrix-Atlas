@@ -16,6 +16,7 @@ import {
   Minimize,
   Trash,
   Menu,
+  ExternalLink,
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -27,11 +28,14 @@ import {
   useFrappeCreateDoc,
 } from "frappe-react-sdk";
 import { useQueryClient } from "@tanstack/react-query";
-import { Modal as AntdModal } from "antd";
+import { Modal as AntdModal, Typography } from "antd";
 import dayjs from "dayjs";
-import { AssigneeSelectWidget, ShowUserWidget } from "../components/widgets/AssigneeSelectWidget";
+import {
+  AssigneeSelectWidget,
+  ShowUserWidget,
+} from "../components/widgets/AssigneeSelectWidget";
 import TextWidget from "../components/widgets/TextWidget";
-import RichTextWidget from "../components/widgets/RichTextWidget";
+import RichTextWidget from "../components/widgets/RichTextWidget/RichTextWidget";
 import { TagsSelectWidget } from "../components/widgets/TagsSelectWidget";
 import StatusWidget from "../components/widgets/StatusWidget";
 import { Button, Dropdown, Space, Form, Input, Select } from "antd";
@@ -43,6 +47,8 @@ import { useAssigneeOfTask } from "../hooks/query";
 import { useGetDoctypeField } from "../hooks/doctype";
 import SubjectWidget from "../components/widgets/SubjectWidget";
 import FileAttachment from "./FileAttachment";
+import PriorityWidget from "../components/widgets/PriorityWidget";
+import ActivityTimeline from "../components/ActivityTimeline";
 
 const TaskDetail = () => {
   const [isResizing, setIsResizing] = useState(false);
@@ -67,7 +73,7 @@ const TaskDetail = () => {
   const assignee_mutation = useFrappePostCall(
     "infintrix_atlas.api.v1.switch_assignee_of_task",
   );
-  
+
   const notifyStatusChange = useFrappePostCall(
     "infintrix_atlas.api.v1.notify_status_changed",
   );
@@ -77,6 +83,7 @@ const TaskDetail = () => {
   });
 
   const task = task_details_query.data || {};
+  console.log("task details:", task)
   const issueName = task.issue || null;
   const issue_query = useFrappeGetDoc(
     "Issue",
@@ -241,7 +248,8 @@ const TaskDetail = () => {
                 if (key === "delete_task") {
                   AntdModal.confirm({
                     title: "Delete task",
-                    content: "Are you sure you want to delete this task? This action cannot be undone.",
+                    content:
+                      "Are you sure you want to delete this task? This action cannot be undone.",
                     okText: "Delete",
                     okType: "danger",
                     cancelText: "Cancel",
@@ -256,9 +264,16 @@ const TaskDetail = () => {
                       }
                     },
                   });
+                } else if (key === "open_in_desk") {
+                  window.open(`/app/task/${task.name}`, "_blank");
                 }
               },
               items: [
+                {
+                  key: "open_in_desk",
+                  label: "Open in Desk",
+                  icon: <ExternalLink size={14} />,
+                },
                 {
                   key: "delete_task",
                   label: "Delete Task",
@@ -297,17 +312,21 @@ const TaskDetail = () => {
               inputStyle={{
                 fontSize: "2rem",
               }}
-              style={{ fontSize: "2rem", fontWeight: "600", marginBottom: "1.5rem" }}
+              style={{
+                fontSize: "2rem",
+                fontWeight: "600",
+                marginBottom: "1.5rem",
+              }}
               value={task.subject}
-            // onSubmit={(newValue) => {
-            //   updateMutation
-            //     .updateDoc("Task", task.name, {
-            //       subject: newValue,
-            //     })
-            //     .then(() => {
-            //       task_details_query.mutate();
-            //     });
-            // }}
+              // onSubmit={(newValue) => {
+              //   updateMutation
+              //     .updateDoc("Task", task.name, {
+              //       subject: newValue,
+              //     })
+              //     .then(() => {
+              //       task_details_query.mutate();
+              //     });
+              // }}
             />
           </h1>
 
@@ -342,57 +361,21 @@ const TaskDetail = () => {
               </div>
             </section>
 
-            {/* <SubTasks task={selectedTask} />
+            <SubTasks task={selectedTask} />
 
-                <section>
-                  <h3 className="text-sm font-bold text-slate-600 dark:text-slate-400 mb-3 uppercase tracking-wider">
-                  Linked work items
-                  </h3>
-                  <button className="flex items-center text-slate-600 dark:text-slate-400 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 px-2 py-1 -ml-2 rounded transition-colors">
-                  <Plus size={16} className="mr-1" /> Add linked work item
-                  </button>
-                </section> */}
+            {/* <section>
+              <h3 className="text-sm font-bold text-slate-600 dark:text-slate-400 mb-3 uppercase tracking-wider">
+                Linked work items
+              </h3>
+              <button className="flex items-center text-slate-600 dark:text-slate-400 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 px-2 py-1 -ml-2 rounded transition-colors">
+                <Plus size={16} className="mr-1" /> Add linked work item
+              </button>
+            </section> */}
 
             {/* Activity Section */}
             <section className="mt-12">
-              <div className="flex items-center justify-between mb-6 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex space-x-6">
-                  {tabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`cursor-pointer pb-2 text-sm font-semibold transition-all relative ${activeTab === tab.id
-                        ? "text-blue-600 dark:text-blue-400"
-                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-                        }`}
-                    >
-                      {tab.label}
-                      {activeTab === tab.id && (
-                        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 dark:bg-blue-400 animate-in slide-in-from-left-2" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-                <button className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-                  <Filter size={16} />
-                </button>
-              </div>
-              {tabs.map((tab) => {
-                if (tab.id === activeTab) {
-                  return (
-                    <div key={tab.id} className="">
-                      {/* Render content based on active tab */}
-                      {tab.id === "comments" && (
-                        <CommentSection task_id={task.name} />
-                      )}
-                      {tab.id === "history" && (
-                        <HistorySection task_id={task.name} />
-                      )}
-                    </div>
-                  );
-                }
-                return null;
-              })}
+              <ActivityTimeline task_id={task.name} />
+              
             </section>
           </div>
         </main>
@@ -431,13 +414,18 @@ const TaskDetail = () => {
                       task_details_query.mutate();
                       // Notify assigned users about status change
                       if (oldStatus !== newStatus) {
-                        notifyStatusChange.call({
-                          task_name: task.name,
-                          old_status: oldStatus,
-                          new_status: newStatus,
-                        }).catch((err) => {
-                          console.error("Failed to send status change notification:", err);
-                        });
+                        notifyStatusChange
+                          .call({
+                            task_name: task.name,
+                            old_status: oldStatus,
+                            new_status: newStatus,
+                          })
+                          .catch((err) => {
+                            console.error(
+                              "Failed to send status change notification:",
+                              err,
+                            );
+                          });
                       }
                     });
                 }}
@@ -477,13 +465,31 @@ const TaskDetail = () => {
                 <div className="text-slate-500 dark:text-slate-400 font-medium py-1">
                   Assignee
                 </div>
-                {console.log("assignees_of_task", assignees_of_task)}
                 <div className="flex items-center space-x-2 py-1 group cursor-pointer">
                   <AssigneeSelectWidget
                     single={true}
                     show_label={true}
                     value={assignees_of_task || []}
                     task={selectedTask}
+                  />
+                </div>
+              </>
+              <>
+                <div className="text-slate-500 dark:text-slate-400 font-medium py-1">
+                  Priority
+                </div>
+                <div className="flex items-center space-x-2 py-1 group cursor-pointer">
+                  <PriorityWidget
+                    value={task.priority}
+                    onChange={(newPriority) => {
+                      updateMutation
+                        .updateDoc("Task", task.name, {
+                          priority: newPriority,
+                        })
+                        .then(() => {
+                          task_details_query.mutate();
+                        });
+                    }}
                   />
                 </div>
               </>
@@ -547,17 +553,13 @@ const TaskDetail = () => {
                 </div>
                 <div className="flex items-center space-x-2 py-1 group cursor-pointer">
                   {console.log("task.owner", task.owner)}
-                  <ShowUserWidget
-                    value={task.owner}
-                    show_label={true}
-                  />
+                  <ShowUserWidget value={task.owner} show_label={true} />
                 </div>
               </>
             </div>
           </div>
 
           <FileAttachment
-
             doctype="Task"
             docname={task.name}
             // fieldname="attachments"
@@ -702,10 +704,11 @@ const TaskDetail = () => {
     return (
       <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 flex items-center justify-center animate-in fade-in duration-200">
         <div
-          className={`bg-white dark:bg-slate-900 overflow-hidden transition-all duration-300 ease-in-out ${fullScreen
-            ? "w-full h-screen max-w-none rounded-none shadow-none"
-            : "w-full max-w-7xl h-[90vh] rounded-xl shadow-2xl"
-            }`}
+          className={`bg-white dark:bg-slate-900 overflow-hidden transition-all duration-300 ease-in-out ${
+            fullScreen
+              ? "w-full h-screen max-w-none rounded-none shadow-none"
+              : "w-full max-w-7xl h-[90vh] rounded-xl shadow-2xl"
+          }`}
         >
           {task_details_query.isLoading || assignee_of_task_query.isLoading
             ? "Loading..."
